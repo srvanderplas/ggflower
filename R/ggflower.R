@@ -1,8 +1,46 @@
+petal <- function (x, y, shape = "heart") {
+  # ignore shape for right now, but we could implement other shapes later
+  petal_shape <- data.frame(x0 = seq(-pi, pi, by=0.1))
+  if (shape=="normal")
+    petal_shape$y0 <- dnorm(petal_shape$x0)
+  if (shape == "cos")
+    petal_shape$y0 = cos(petal_shape$x0)
+  if (shape == "silo") {
+    petal_shape$y0 = 5 + cos(petal_shape$x0)
+    petal_shape$y0[1] = 0
+    petal_shape$y0[length(petal_shape$y0)] = 0
+  }
+  if (shape == "heart") {
+    petal_shape$y0 = 5 + abs(3*sin(petal_shape$x0))
+    petal_shape$y0[1] = 0
+    petal_shape$y0[length(petal_shape$y0)] = 0
+  }
+
+  # scale the shape to be between ± 0.5 horizontally and [0,1] height
+  petal_shape$x0 <- petal_shape$x0/diff(range(petal_shape$x0))
+  petal_shape$y0 <- (petal_shape$y0 - min(petal_shape$y0))/(max(petal_shape$y0)-min(petal_shape$y0))
+
+  stopifnot(length(x)==1, length(y)==1)
+  petal_shape %>%
+    dplyr::mutate(
+        x = petal_shape$x0+x,
+        y = petal_shape$y0*y
+      ) %>%
+    dplyr::select(-x0, -y0)
+}
+
 #' Create the ggflower geom
 #'
 #' @param x categorical variable to group by
-#' @param y the relative height of the group
+#' @param y the height of the group (y > 0)
 #' @export
+#' @examples
+#' n <- 8
+#' dframe <- data.frame(index = 1:n, y = n:1)
+#' dframe |>
+#'   ggplot(aes(x = index, y = y)) +
+#'   geom_flower(aes(fill = factor(index))) +
+#'   coord_polar(theta = "x")
 geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
                         position = "identity", na.rm = F, show.legend = NA,
                         inherit.aes = T, ...) {
@@ -26,12 +64,12 @@ geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
 #' @usage NULL
 #' @importFrom ggplot2 ggproto Geom
 #' @export
-GeomRidgeline <- ggproto(
+GeomFlower <- ggproto(
   "GeomFlower", Geom,
   # Set default aesthetics
-  default_aes = aes(
-    # # ridgeline aesthetics
-    # color = "black", fill = "grey70", y = 0, size = 0.5, linetype = 1,
+  default_aes = ggplot2::aes(
+     color = "grey50", fill = "grey70", linewidth = 0.5,
+     linetype = "solid", alpha = NA, subgroup = NULL
     # min_height = 0, scale = 1, alpha = NA, datatype = "ridgeline",
     #
     # # point aesthetics with default
@@ -58,6 +96,22 @@ GeomRidgeline <- ggproto(
     # you're actually going to plot
     # goal is to modify data
 
+    # aggregate over x
+    data_x <- data %>% group_by(x) %>%
+      summarise(
+        y = sum(y, na.rm=TRUE),
+        group = x
+        ) %>%
+      mutate(
+        petals = purrr::map2(.x = x, .y = y, .f = function(.x, .y) {
+          petal(.x, .y)
+        })
+      )
+    data <- data %>% dplyr::select(-y, -group) %>%
+      left_join(data_x, by="x") %>%
+      dplyr::select(-x, -y) %>%
+      tidyr::unnest(col=petals)
+
     # Count # classes/groups
     # Set up x variable for density/petals
     # Scale y so that everything's within 0-1 (ish)
@@ -78,28 +132,51 @@ GeomRidgeline <- ggproto(
     # }
     #
     # transform(data, ymin = y, ymax = y + scale*height)
+    data
   },
 
   handle_na = function(data, params) {
     data
   },
+  draw_key = draw_key_polygon,
 
-  # draw_panel = function(self, data, panel_params, coord, ...) {
-  #   groups <- split(data, factor(data$group))
-  #
-  #   # sort list so highest ymin values are in the front
-  #   # we take a shortcut here and look only at the first ymin value given
-  #   o <- order(unlist(lapply(groups, function(data){data$ymin[1]})), decreasing = TRUE)
-  #   groups <- groups[o]
-  #
-  #   grobs <- lapply(groups, function(group) {
-  #     self$draw_group(group, panel_params, coord, ...)
-  #   })
-  #
-  #   ggname(snake_class(self), gTree(
-  #     children = do.call("gList", grobs)
-  #   ))
-  # },
+  draw_panel = function(self, data, panel_params, coord, lineend = "butt", linejoin = "round", linemitre = 10,   ...) {
+
+    #cat("draw_panel in GeomFlower\n")
+ #   browser()
+
+    data <- ggplot2:::check_linewidth(data, snake_class(self))
+    n <- nrow(data)
+    if (n == 1) return(zeroGrob())
+
+    munched <- coord_munch(coord, data, panel_params)
+
+      # Sort by group to make sure that colors, fill, etc. come in same order
+      munched <- munched[order(munched$group), ]
+
+      # For gpar(), there is one entry per polygon (not one entry per point).
+      # We'll pull the first value from each group, and assume all these values
+      # are the same within each group.
+      first_idx <- !duplicated(munched$group)
+      first_rows <- munched[first_idx, ]
+
+      ggplot2:::ggname(
+        "geom_flower",
+        grid::polygonGrob(
+          munched$x, munched$y, default.units = "native",
+          id = munched$group,
+          gp = grid::gpar(
+            col = first_rows$colour,
+            fill = alpha(first_rows$fill, first_rows$alpha),
+            lwd = first_rows$linewidth * .pt,
+            lty = first_rows$linetype,
+            lineend = lineend,
+            linejoin = linejoin,
+            linemitre = linemitre
+          )
+        )
+      )
+  },
 
   # draw_group = function(self, data, panel_params, coord, na.rm = FALSE) {
   #   if (na.rm) data <- data[stats::complete.cases(data[c("x", "ymin", "ymax")]), ]
@@ -212,30 +289,30 @@ GeomRidgeline <- ggproto(
 # I think this is where things are actually drawn
 # Need to enforce polar coords
 
-  make_line_grob = function(munched_line, munched_poly, aes) {
-    ggname("geom_flower",
-           grid::polylineGrob(
-             munched_line$x, munched_line$y, id = munched_line$id,
-             default.units = "native",
-             gp = grid::gpar(
-               col = aes$colour,
-               lwd = aes$size * .pt,
-               lty = aes$linetype)
-           )
-    )
-  },
-
-  make_area_grob = function(munched_poly, aes) {
-    ggname("geom_ridgeline",
-           grid::polygonGrob(
-             munched_poly$x, munched_poly$y, id = munched_poly$id,
-             default.units = "native",
-             gp = grid::gpar(
-               fill = ggplot2::alpha(aes$fill, aes$alpha),
-               lty = 0)
-           )
-    )
-  }
+  # make_line_grob = function(munched_line, munched_poly, aes) {
+  #   ggname("geom_flower",
+  #          grid::polylineGrob(
+  #            munched_line$x, munched_line$y, id = munched_line$id,
+  #            default.units = "native",
+  #            gp = grid::gpar(
+  #              col = aes$colour,
+  #              lwd = aes$size * .pt,
+  #              lty = aes$linetype)
+  #          )
+  #   )
+  # },
+  #
+  # make_area_grob = function(munched_poly, aes) {
+  #   ggname("geom_ridgeline",
+  #          grid::polygonGrob(
+  #            munched_poly$x, munched_poly$y, id = munched_poly$id,
+  #            default.units = "native",
+  #            gp = grid::gpar(
+  #              fill = ggplot2::alpha(aes$fill, aes$alpha),
+  #              lty = 0)
+  #          )
+  #   )
+  # }
 
 
 )
