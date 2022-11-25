@@ -29,21 +29,29 @@ petal <- function (x, y, shape = "heart") {
     dplyr::select(-x0, -y0)
 }
 
-#' Create the ggflower geom
+#' Create the flower geom
 #'
 #' @param x categorical variable to group by
 #' @param y the height of the group (y > 0)
+#' @param shape shape of the petal, one of "normal", "cos", "silo", "heart"
 #' @export
 #' @examples
 #' n <- 8
 #' dframe <- data.frame(index = 1:n, y = n:1)
 #' dframe |>
 #'   ggplot(aes(x = index, y = y)) +
+#'   geom_flower(aes(fill = factor(index)))
+#' dframe |>
+#'   ggplot(aes(x = index, y = y)) +
 #'   geom_flower(aes(fill = factor(index))) +
+#'   coord_polar(theta = "x")
+#' dframe |>
+#'   ggplot(aes(x = index, y = y)) +
+#'   geom_flower(aes(fill = factor(index)), shape = "heart") +
 #'   coord_polar(theta = "x")
 geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
                         position = "identity", na.rm = F, show.legend = NA,
-                        inherit.aes = T, ...) {
+                        inherit.aes = T, shape="normal", ...) {
   layer(
     data = data,
     mapping = mapping,
@@ -54,6 +62,7 @@ geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
     inherit.aes = inherit.aes,
     params = list(
       na.rm = na.rm,
+      shape = shape,
       ...
     )
   )
@@ -88,7 +97,7 @@ GeomFlower <- ggproto(
 
   optional_aes = c("fill", "color"),
 
-  extra_params = c("na.rm"),
+  extra_params = c("na.rm", "shape"),
 
   setup_data = function(self, data, params) {
     # This is where the computations are done
@@ -104,7 +113,7 @@ GeomFlower <- ggproto(
         ) %>%
       mutate(
         petals = purrr::map2(.x = x, .y = y, .f = function(.x, .y) {
-          petal(.x, .y)
+          petal(.x, .y, shape = params$shape)
         })
       )
     data <- data %>% dplyr::select(-y, -group) %>%
