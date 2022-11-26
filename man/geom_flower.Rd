@@ -19,7 +19,7 @@ geom_flower(
 )
 }
 \arguments{
-\item{shape}{shape of the petal, one of "normal", "cos", "silo", "heart"}
+\item{shape}{shape of the petal, one of "normal", "cos", "circle", "heart"}
 
 \item{x}{categorical variable to group by}
 
@@ -31,16 +31,26 @@ Create the flower geom
 \examples{
 n <- 8
 dframe <- data.frame(index = 1:n, y = n:1)
+# scaling is not correct for cartesian coordinates
+# squaring the y values ensures that heights are linear in y
 dframe |>
-  ggplot(aes(x = index, y = y)) +
+  ggplot(aes(x = index, y = y^2)) +
   geom_flower(aes(fill = factor(index)))
+# use polar coordinates
 dframe |>
   ggplot(aes(x = index, y = y)) +
-  geom_flower(aes(fill = factor(index))) +
-  coord_polar(theta = "x")
+  geom_flower(aes(fill = factor(index)),
+  shape = "cos", colour = NA, alpha = 0.8) +
+  geom_flower(aes(x=1:8, y=2),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
+  geom_flower(aes(x=1:8, y=4),linewidth=0.25,fill = NA, colour="lightyellow", shape = "cos") +
+  geom_flower(aes(x=1:8, y=6),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
+  annotate("point", x = 1, y = 0, color="lightyellow", size=20) +
+  coord_polar() +
+  theme_void() +
+  theme(legend.position="bottom")
 dframe |>
   ggplot(aes(x = index, y = y)) +
-  geom_flower(aes(fill = factor(index)), shape = "heart") +
-  coord_polar(theta = "x")
+  geom_flower(aes(fill = factor(index)), shape = "circle") +
+  coord_polar()
 }
 \keyword{datasets}
