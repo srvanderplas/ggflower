@@ -1,12 +1,17 @@
 petal <- function (x, y, shape = "heart") {
   # ignore shape for right now, but we could implement other shapes later
   petal_shape <- data.frame(x0 = seq(-pi, pi, by=0.1))
+  if (shape == "box") {
+    petal_shape <- data.frame(
+      x0 =c(0,0,1,1) - 0.5,
+      y0 <- c(0,1,1,0))
+  }
   if (shape=="normal")
     petal_shape$y0 <- dnorm(petal_shape$x0)
   if (shape == "cos")
     petal_shape$y0 = cos(petal_shape$x0)
-  if (shape == "silo") {
-    petal_shape$y0 = 5 + cos(petal_shape$x0)
+  if (shape == "circle") {
+    petal_shape$y0 = 5 + sqrt(1-(petal_shape$x0/pi)^2)
     petal_shape$y0[1] = 0
     petal_shape$y0[length(petal_shape$y0)] = 0
   }
@@ -20,11 +25,15 @@ petal <- function (x, y, shape = "heart") {
   petal_shape$x0 <- petal_shape$x0/diff(range(petal_shape$x0))
   petal_shape$y0 <- (petal_shape$y0 - min(petal_shape$y0))/(max(petal_shape$y0)-min(petal_shape$y0))
 
+  area <- sum(petal_shape$y0)/nrow(petal_shape)
+  area2 <- sum(petal_shape$y0^2)/nrow(petal_shape)
+  petal_shape$y0 <- 2*petal_shape$y0/area2
+
   stopifnot(length(x)==1, length(y)==1)
   petal_shape %>%
     dplyr::mutate(
         x = petal_shape$x0+x,
-        y = petal_shape$y0*y
+        y = petal_shape$y0*sqrt(y)
       ) %>%
     dplyr::select(-x0, -y0)
 }
@@ -33,22 +42,32 @@ petal <- function (x, y, shape = "heart") {
 #'
 #' @param x categorical variable to group by
 #' @param y the height of the group (y > 0)
-#' @param shape shape of the petal, one of "normal", "cos", "silo", "heart"
+#' @param shape shape of the petal, one of "normal", "cos", "circle", "heart"
 #' @export
 #' @examples
 #' n <- 8
 #' dframe <- data.frame(index = 1:n, y = n:1)
+#' # scaling is not correct for cartesian coordinates
+#' # squaring the y values ensures that heights are linear in y
 #' dframe |>
-#'   ggplot(aes(x = index, y = y)) +
+#'   ggplot(aes(x = index, y = y^2)) +
 #'   geom_flower(aes(fill = factor(index)))
+#' # use polar coordinates
 #' dframe |>
 #'   ggplot(aes(x = index, y = y)) +
-#'   geom_flower(aes(fill = factor(index))) +
-#'   coord_polar(theta = "x")
+#'   geom_flower(aes(fill = factor(index)),
+#'   shape = "cos", colour = NA, alpha = 0.8) +
+#'   geom_flower(aes(x=1:8, y=2),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
+#'   geom_flower(aes(x=1:8, y=4),linewidth=0.25,fill = NA, colour="lightyellow", shape = "cos") +
+#'   geom_flower(aes(x=1:8, y=6),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
+#'   annotate("point", x = 1, y = 0, color="lightyellow", size=20) +
+#'   coord_polar() +
+#'   theme_void() +
+#'   theme(legend.position="bottom")
 #' dframe |>
 #'   ggplot(aes(x = index, y = y)) +
-#'   geom_flower(aes(fill = factor(index)), shape = "heart") +
-#'   coord_polar(theta = "x")
+#'   geom_flower(aes(fill = factor(index)), shape = "circle") +
+#'   coord_polar()
 geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
                         position = "identity", na.rm = F, show.legend = NA,
                         inherit.aes = T, shape="normal", ...) {
