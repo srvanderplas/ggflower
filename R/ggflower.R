@@ -1,3 +1,4 @@
+#' @importFrom stats dnorm
 petal <- function (x, y, shape = "heart") {
   # ignore shape for right now, but we could implement other shapes later
   petal_shape <- data.frame(x0 = seq(-pi, pi, by=0.1))
