@@ -164,6 +164,8 @@ GeomFlower <- ggproto(
       dplyr::summarise(
         y = sum(y, na.rm = TRUE),
         group = x # this is dangerous. what if there is already a grouping?
+        # Can we leverage subgroup? It doesn't seem to be used, and seems to be
+        # leftover from the polygon geom?
       ) %>%
       dplyr::mutate(
         petals = purrr::map2(.x = x, .y = y, .f = function(.x, .y) {
