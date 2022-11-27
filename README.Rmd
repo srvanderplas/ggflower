@@ -16,8 +16,11 @@ knitr::opts_chunk$set(
 # ggflower
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/drbradford12/ggflower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/drbradford12/ggflower/actions/workflows/R-CMD-check.yaml)
-[![Codecov test coverage](https://codecov.io/gh/drbradford12/ggflower/branch/main/graph/badge.svg)](https://app.codecov.io/gh/drbradford12/ggflower?branch=main)
+[![R-CMD-check](https://github.com/srvanderplas/ggflower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/srvanderplas/ggflower/actions/workflows/R-CMD-check.yaml)
+[![codecov](https://codecov.io/gh/srvanderplas/ggflower/branch/main/graph/badge.svg?token=tFnnmH1WMi)](https://codecov.io/gh/srvanderplas/ggflower)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Documentation](https://github.com/srvanderplas/ggflower/actions/workflows/pkgdown.yaml/badge.svg)](https://github.com/srvanderplas/ggflower/actions/workflows/pkgdown.yaml)
+[![Test Coverage Workflow](https://github.com/srvanderplas/ggflower/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/srvanderplas/ggflower/actions/workflows/test-coverage.yaml)
 <!-- badges: end -->
 
 The goal of ggflower is to ...
