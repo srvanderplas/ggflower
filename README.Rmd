@@ -1,17 +1,28 @@
+---
+output: github_document
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
 
 # ggflower
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of ggflower is to …
+The goal of ggflower is to ...
 
 ## Installation
 
-You can install the development version of ggflower from
-[GitHub](https://github.com/) with:
+You can install the development version of ggflower from [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")
@@ -22,7 +33,7 @@ devtools::install_github("drbradford12/ggflower")
 
 This is a basic example which shows you how to solve a common problem:
 
-``` r
+```{r example}
 library(ggplot2)
 library(ggflower)
 ## basic example code
@@ -33,25 +44,12 @@ dframe <- data.frame(index = 1:n, y = n:1)
 dframe |>
   ggplot(aes(x = index, y = y)) +
   geom_flower(aes(fill = factor(index)), shape="heart") 
-#> Warning in draw_panel(..., self = self): geom_flower should only be used in
-#> polar coordinates. Mappings to y are not linear. Add + coord_polar() to your
-#> call.
-```
-
-<img src="man/figures/README-example-1.png" width="100%" />
-
-``` r
 
 
 dframe |>
   ggplot(aes(x = index, y = y)) +
   geom_flower(aes(fill = factor(index)), shape="heart") +
   coord_polar()
-```
-
-<img src="man/figures/README-example-2.png" width="100%" />
-
-``` r
 
 
 n <- 12
@@ -63,11 +61,6 @@ dframe |>
   coord_polar() +
   theme_void() +
   scale_fill_gradient(low="yellow", high="darkorange")
-```
-
-<img src="man/figures/README-example-3.png" width="100%" />
-
-``` r
 
 
 n <- 12
@@ -86,4 +79,3 @@ dframe |>
   theme(legend.position = "none")
 ```
 
-<img src="man/figures/README-example-4.png" width="100%" />

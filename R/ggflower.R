@@ -30,12 +30,18 @@ petal <- function (x, y, shape = "heart") {
   petal_shape$y0 <- 2*petal_shape$y0/area2
 
   stopifnot(length(x)==1, length(y)==1)
-  petal_shape %>%
+  petal_shape <- petal_shape %>%
     dplyr::mutate(
         x = petal_shape$x0+x,
         y = petal_shape$y0*sqrt(y)
       ) %>%
     dplyr::select(-x0, -y0)
+  rbind(
+    petal_shape,
+    petal_shape %>% mutate(
+      x = rev(x),
+      y = 0)
+    )
 }
 
 #' Create the flower geom
@@ -43,6 +49,7 @@ petal <- function (x, y, shape = "heart") {
 #' @param x categorical variable to group by
 #' @param y the height of the group (y > 0)
 #' @param shape shape of the petal, one of "normal", "cos", "circle", "heart"
+#' @importFrom dplyr group_by summarise mutate left_join select filter arrange
 #' @export
 #' @examples
 #' n <- 8
@@ -60,7 +67,8 @@ petal <- function (x, y, shape = "heart") {
 #'   geom_flower(aes(x=1:8, y=2),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
 #'   geom_flower(aes(x=1:8, y=4),linewidth=0.25,fill = NA, colour="lightyellow", shape = "cos") +
 #'   geom_flower(aes(x=1:8, y=6),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
-#'   annotate("point", x = 1, y = 0, color="lightyellow", size=20) +
+#'  # annotate("point", x = 1, y = -3, color="lightyellow", size=20) +
+#'   geom_flower(aes(x=1:8, y=0),linewidth=0.25,fill = NA, colour="yellow", shape = "cos") +
 #'   coord_polar() +
 #'   theme_void() +
 #'   theme(legend.position="bottom")
@@ -70,7 +78,7 @@ petal <- function (x, y, shape = "heart") {
 #'   coord_polar()
 geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
                         position = "identity", na.rm = F, show.legend = NA,
-                        inherit.aes = T, shape="normal", ...) {
+                        inherit.aes = T, disk.size=1, disk.colour="lightyellow", shape="normal", ...) {
   layer(
     data = data,
     mapping = mapping,
@@ -82,6 +90,8 @@ geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
     params = list(
       na.rm = na.rm,
       shape = shape,
+      disk.size = disk.size,
+      disk.colour = disk.colour,
       ...
     )
   )
@@ -91,6 +101,8 @@ geom_flower <- function(mapping = NULL, data = NULL, stat = "identity",
 #' @format NULL
 #' @usage NULL
 #' @importFrom ggplot2 ggproto Geom
+#' @importFrom tidyr unnest
+#' @importFrom purrr map2
 #' @export
 GeomFlower <- ggproto(
   "GeomFlower", Geom,
@@ -116,7 +128,8 @@ GeomFlower <- ggproto(
 
   optional_aes = c("fill", "color"),
 
-  extra_params = c("na.rm", "shape"),
+  extra_params = c("na.rm", "shape", "disk.size", "disk.colour"),
+  param_values = NA,
 
   setup_data = function(self, data, params) {
     # This is where the computations are done
@@ -124,11 +137,12 @@ GeomFlower <- ggproto(
     # you're actually going to plot
     # goal is to modify data
 
+    self$param_values <- params
     # aggregate over x
-    data_x <- data %>% group_by(x) %>%
+    data_x <- data %>% group_by(x, PANEL) %>%
       summarise(
         y = sum(y, na.rm=TRUE),
-        group = x
+        group = x # this is dangerous. what if there is already a grouping?
         ) %>%
       mutate(
         petals = purrr::map2(.x = x, .y = y, .f = function(.x, .y) {
@@ -136,31 +150,19 @@ GeomFlower <- ggproto(
         })
       )
     data <- data %>% dplyr::select(-y, -group) %>%
-      left_join(data_x, by="x") %>%
+      left_join(data_x, by=c("x", "PANEL")) %>%
       dplyr::select(-x, -y) %>%
       tidyr::unnest(col=petals)
+    data$type__ <- "petal"
 
-    # Count # classes/groups
-    # Set up x variable for density/petals
-    # Scale y so that everything's within 0-1 (ish)
-    # create normal densities and multiply by y to scale petal height
+    disk <- data %>% filter(y == 0)
+    disk$type__ <- "disk"
 
-    # if (!"scale" %in% names(data)) {
-    #   if (!"scale" %in% names(params))
-    #     data <- cbind(data, scale = self$default_aes$scale)
-    #   else
-    #     data <- cbind(data, scale = params$scale)
-    # }
-    #
-    # if (!"min_height" %in% names(data)){
-    #   if (!"min_height" %in% names(params))
-    #     data <- cbind(data, min_height = self$default_aes$min_height)
-    #   else
-    #     data <- cbind(data, min_height = params$min_height)
-    # }
-    #
-    # transform(data, ymin = y, ymax = y + scale*height)
-    data
+    diskcenter <- disk %>% filter(!duplicated(PANEL))
+    diskcenter$y <- -params$disk.size
+    diskcenter$type__ <- "center"
+
+    rbind(data, diskcenter, disk)
   },
 
   handle_na = function(data, params) {
@@ -171,177 +173,34 @@ GeomFlower <- ggproto(
   draw_panel = function(self, data, panel_params, coord, lineend = "butt", linejoin = "round", linemitre = 10,   ...) {
 
     #cat("draw_panel in GeomFlower\n")
+    if (!("CoordPolar" %in% class(coord)))
+      warning("geom_flower should only be used in polar coordinates. Mappings to y are not linear. Add + coord_polar() to your call.")
  #   browser()
+    center <- data %>% filter(type__=="center")
+    disk <- data %>% filter(type__=="disk") %>%
+      mutate(
+        fill = self$param_values$disk.colour,
+        group=-1
+        ) %>% arrange(x)
 
-    data <- ggplot2:::check_linewidth(data, snake_class(self))
-    n <- nrow(data)
-    if (n == 1) return(zeroGrob())
-
-    munched <- coord_munch(coord, data, panel_params)
-
-      # Sort by group to make sure that colors, fill, etc. come in same order
-      munched <- munched[order(munched$group), ]
-
-      # For gpar(), there is one entry per polygon (not one entry per point).
-      # We'll pull the first value from each group, and assume all these values
-      # are the same within each group.
-      first_idx <- !duplicated(munched$group)
-      first_rows <- munched[first_idx, ]
-
-      ggplot2:::ggname(
-        "geom_flower",
-        grid::polygonGrob(
-          munched$x, munched$y, default.units = "native",
-          id = munched$group,
+    data <- data %>% filter(type__=="petal")
+    ggplot2:::ggname("geom_flower",
+      grid::grobTree(
+        grid::pointsGrob(
+          center$x, center$y,
+          pch = 1,
           gp = grid::gpar(
-            col = first_rows$colour,
-            fill = alpha(first_rows$fill, first_rows$alpha),
-            lwd = first_rows$linewidth * .pt,
-            lty = first_rows$linetype,
-            lineend = lineend,
-            linejoin = linejoin,
-            linemitre = linemitre
+            col = NA,
+            fill = NA,
+            # Stroke is added around the outside of the point
+            fontsize = 1,
+            lwd = 1
           )
-        )
-      )
-  },
-
-  # draw_group = function(self, data, panel_params, coord, na.rm = FALSE) {
-  #   if (na.rm) data <- data[stats::complete.cases(data[c("x", "ymin", "ymax")]), ]
-  #
-  #   # split data into data types (ridgeline, vline, point)
-  #   data_list <- split(data, factor(data$datatype))
-  #
-  #   point_grob <- self$make_point_grob(data_list[["point"]], panel_params, coord)
-  #   vline_grob <- self$make_vline_grob(data_list[["vline"]], panel_params, coord)
-  #
-  #   data <- data_list[["ridgeline"]]
-  #
-  #   # if the final data set is empty then we're done here
-  #   if (is.null(data)) {
-  #     return(grid::grobTree(vline_grob, point_grob))
-  #   }
-  #
-  #   # otherwise, continue. First we order the data, in preparation for polygon drawing
-  #   data <- data[order(data$group, data$x), ]
-  #
-  #   # remove all points that fall below the minimum height
-  #   data$ymax[data$height < data$min_height] <- NA
-  #
-  #   # Check that aesthetics are constant
-  #   aes <- unique(data[c("colour", "fill", "size", "linetype", "alpha")])
-  #   if (nrow(aes) > 1) {
-  #     stop("Aesthetics can not vary along a ridgeline")
-  #   }
-  #   aes <- as.list(aes)
-  #
-  #   # Instead of removing NA values from the data and plotting a single
-  #   # polygon, we want to "stop" plotting the polygon whenever we're
-  #   # missing values and "start" a new polygon as soon as we have new
-  #   # values.  We do this by creating an id vector for polygonGrob that
-  #   # has distinct polygon numbers for sequences of non-NA values and NA
-  #   # for NA values in the original data.  Example: c(NA, 2, 2, 2, NA, NA,
-  #   # 4, 4, 4, NA)
-  #   missing_pos <- !stats::complete.cases(data[c("x", "ymin", "ymax")])
-  #   ids <- cumsum(missing_pos) + 1
-  #   ids[missing_pos] <- NA
-  #
-  #   # munching for polygon
-  #   positions <- with(data, data.frame(
-  #     x = c(x, rev(x)),
-  #     y = c(ymax, rev(ymin)),
-  #     id = c(ids, rev(ids))
-  #   ))
-  #   munched_poly <- ggplot2::coord_munch(coord, positions, panel_params)
-  #
-  #   # munching for line
-  #   positions <- with(data, data.frame(
-  #     x = x,
-  #     y = ymax,
-  #     id = ids
-  #   ))
-  #   munched_line <- ggplot2::coord_munch(coord, positions, panel_params)
-  #
-  #   # calculate line and area grobs
-  #   line_grob <- self$make_line_grob(munched_line, munched_poly, aes)
-  #   area_grob <- self$make_area_grob(munched_poly, aes)
-  #
-  #   # combine everything and return
-  #   grid::grobTree(area_grob, vline_grob, line_grob, point_grob)
-  # },
-
-#
-#   make_point_grob = function(data, panel_params, coord) {
-#     if (is.null(data)) {
-#       return(grid::nullGrob())
-#     }
-#     data$y <- data$ymin
-#     coords <- coord$transform(data, panel_params)
-#     ggname("geom_ridgeline",
-#            grid::pointsGrob(
-#              coords$x, coords$y,
-#              pch = coords$point_shape,
-#              gp = grid::gpar(
-#                col = alpha(
-#                  data$point_colour %||% data$point_color %||% data$colour,
-#                  data$point_alpha %||% data$alpha
-#                ),
-#                fill = alpha(
-#                  data$point_fill %||% data$fill,
-#                  data$point_alpha %||% data$alpha
-#                ),
-#                # Stroke is added around the outside of the point
-#                fontsize = coords$point_size * .pt + coords$point_stroke * .stroke / 2,
-#                lwd = coords$point_stroke * .stroke / 2
-#              )
-#            )
-#     )
-#   },
-#
-#   make_vline_grob = function(data, panel_params, coord) {
-#     if (is.null(data)) {
-#       return(grid::nullGrob())
-#     }
-#     data$xend <- data$x
-#     data$y <- data$ymin
-#     data$yend <- data$ymax
-#     data$alpha <- NA
-#
-#     # copy vline aesthetics over if set
-#     data$colour <- data$vline_colour %||% data$vline_color %||% data$colour
-#     data$linetype <- data$vline_linetype %||% data$linetype
-#     data$size <- data$vline_size %||% data$size
-#     ggplot2::GeomSegment$draw_panel(data, panel_params, coord)
-#   },
-
-# I think this is where things are actually drawn
-# Need to enforce polar coords
-
-  # make_line_grob = function(munched_line, munched_poly, aes) {
-  #   ggname("geom_flower",
-  #          grid::polylineGrob(
-  #            munched_line$x, munched_line$y, id = munched_line$id,
-  #            default.units = "native",
-  #            gp = grid::gpar(
-  #              col = aes$colour,
-  #              lwd = aes$size * .pt,
-  #              lty = aes$linetype)
-  #          )
-  #   )
-  # },
-  #
-  # make_area_grob = function(munched_poly, aes) {
-  #   ggname("geom_ridgeline",
-  #          grid::polygonGrob(
-  #            munched_poly$x, munched_poly$y, id = munched_poly$id,
-  #            default.units = "native",
-  #            gp = grid::gpar(
-  #              fill = ggplot2::alpha(aes$fill, aes$alpha),
-  #              lty = 0)
-  #          )
-  #   )
-  # }
-
-
+        ),
+      ggplot2::GeomPolygon$draw_panel(data, panel_params, coord, lineend=lineend, linejoin=linejoin, linemitre=linemitre, ...),
+      ggplot2::GeomPolygon$draw_panel(disk, panel_params, coord, lineend=lineend, linejoin=linejoin, linemitre=linemitre, ...)
+    )
+    )
+  }
 )
 

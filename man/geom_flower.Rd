@@ -14,6 +14,8 @@ geom_flower(
   na.rm = F,
   show.legend = NA,
   inherit.aes = T,
+  disk.size = 1,
+  disk.colour = "lightyellow",
   shape = "normal",
   ...
 )
@@ -44,7 +46,8 @@ dframe |>
   geom_flower(aes(x=1:8, y=2),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
   geom_flower(aes(x=1:8, y=4),linewidth=0.25,fill = NA, colour="lightyellow", shape = "cos") +
   geom_flower(aes(x=1:8, y=6),linewidth=0.125,fill = NA, colour="lightyellow", shape = "cos") +
-  annotate("point", x = 1, y = 0, color="lightyellow", size=20) +
+ # annotate("point", x = 1, y = -3, color="lightyellow", size=20) +
+  geom_flower(aes(x=1:8, y=0),linewidth=0.25,fill = NA, colour="yellow", shape = "cos") +
   coord_polar() +
   theme_void() +
   theme(legend.position="bottom")
