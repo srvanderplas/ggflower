@@ -4,6 +4,8 @@
 # ggflower
 
 <!-- badges: start -->
+
+[![R-CMD-check](https://github.com/drbradford12/ggflower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/drbradford12/ggflower/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 The goal of ggflower is to …
@@ -25,6 +27,28 @@ This is a basic example which shows you how to solve a common problem:
 ``` r
 library(ggplot2)
 library(ggflower)
+#> Loading required package: dplyr
+#> 
+#> Attaching package: 'dplyr'
+#> The following objects are masked from 'package:stats':
+#> 
+#>     filter, lag
+#> The following objects are masked from 'package:base':
+#> 
+#>     intersect, setdiff, setequal, union
+#> Loading required package: magrittr
+#> Loading required package: tidyr
+#> 
+#> Attaching package: 'tidyr'
+#> The following object is masked from 'package:magrittr':
+#> 
+#>     extract
+#> Loading required package: purrr
+#> 
+#> Attaching package: 'purrr'
+#> The following object is masked from 'package:magrittr':
+#> 
+#>     set_names
 ## basic example code
 n <- 4
 dframe <- data.frame(index = 1:n, y = n:1)
@@ -33,9 +57,9 @@ dframe <- data.frame(index = 1:n, y = n:1)
 dframe |>
   ggplot(aes(x = index, y = y)) +
   geom_flower(aes(fill = factor(index)), shape="heart") 
-#> Warning in draw_panel(..., self = self): geom_flower should only be used in
-#> polar coordinates. Mappings to y are not linear. Add + coord_polar() to your
-#> call.
+#> Warning in draw_panel(..., self = self): geom_flower should only be used in polar coordinates.
+#>               Mappings to y are not linear.
+#>               Add + coord_polar() to your call.
 ```
 
 <img src="man/figures/README-example-1.png" width="100%" />

@@ -8,7 +8,8 @@ Authors@R: c(
       comment = c(ORCID = "0000-0002-3803-0972")),
     person("Denise", "Bradford", , "denise.r.bradford@gmail.com", c("aut"))
     )
-Description: What the package does (one paragraph).
+Description: `ggflower` generates polar charts which draw flowers, mapping petal 
+              size and color to variables using ggplot2 aesthetics.
 License: MIT + file LICENSE
 Depends: 
     ggplot2 (>= 3.4.0),
@@ -16,6 +17,8 @@ Depends:
     magrittr (>= 2.0.3),
     tidyr (>= 1.2.1),
     purrr (>= 0.3.5)
+Suggests:
+    testthat
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.2
