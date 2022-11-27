@@ -13,13 +13,15 @@ Description: `ggflower` generates polar charts which draw flowers, mapping petal
 License: MIT + file LICENSE
 Depends: 
     ggplot2 (>= 3.4.0),
-    dplyr (>= 1.0.10),
-    magrittr (>= 2.0.3),
-    tidyr (>= 1.2.1),
-    purrr (>= 0.3.5)
+    dplyr,
+    magrittr,
+    tidyr,
+    purrr,
+    R (>= 2.10)
 Suggests:
     covr,
     testthat
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.2
+LazyData: true
