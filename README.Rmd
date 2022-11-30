@@ -23,7 +23,7 @@ knitr::opts_chunk$set(
 [![Test Coverage Workflow](https://github.com/srvanderplas/ggflower/actions/workflows/test-coverage.yaml/badge.svg)](https://github.com/srvanderplas/ggflower/actions/workflows/test-coverage.yaml)
 <!-- badges: end -->
 
-The goal of ggflower is to ...
+The goal of ggflower is to provide flower-like charts using the grammar of graphics API in ggplot2. These charts are intended primarily to draw viewers in, rather than to accurately display data, as we know that radar charts (which are the broader class of charts that encompass flower charts) are harder to use to identify differences and make comparisons. 
 
 ## Installation
 
@@ -36,7 +36,7 @@ devtools::install_github("drbradford12/ggflower")
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+`ggflower` works by creating a "petal" shape for each categorical x variable and then using polar coordinates to turn these values into a flower shape. 
 
 ```{r example}
 library(ggplot2)
@@ -55,7 +55,13 @@ dframe |>
   ggplot(aes(x = index, y = y)) +
   geom_flower(aes(fill = factor(index)), shape="heart") +
   coord_polar()
+```
 
+As a result, it is critical that you use `coord_polar()` with `ggflower` plots. 
+
+
+`ggflower` works well with facets and other `ggplot2` geoms.
+```{r example2}
 
 n <- 12
 dframe <- data.frame(index = 1:n, y = abs(rnorm(n, mean=2)))
@@ -84,3 +90,23 @@ dframe |>
   theme(legend.position = "none")
 ```
 
+There are several different petal types available:
+```{r example3, out.width = "19%", fig.width = 2, fig.height = 2}
+set.seed(3425)
+n <- 12
+dframe <- data.frame(index = 1:n, y = abs(rnorm(n, mean = 2)))
+
+shapes <- c("box", "cos", "normal", "circle", "heart")
+for (i in shapes) {
+  dframe |>
+    (\(df) ggplot(df, aes(x = index, y = y)) +
+       geom_flower(aes(fill = y), shape=i, colour = NA) +
+       coord_polar() +
+       theme_void() +
+       ggtitle(i) + 
+       scale_fill_gradient(low="yellow", high="darkorange", 
+                           guide = 'none')
+    )() |>
+    print()
+}
+```
